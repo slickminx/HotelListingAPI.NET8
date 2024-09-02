@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HotelListing.Data;
 using System.Runtime.Intrinsics.X86;
+using HotelListing.Models.Country;
+using AutoMapper;
+using HotelListing.Contracts;
 
 namespace HotelListing.Controllers
 {
@@ -40,65 +43,92 @@ namespace HotelListing.Controllers
 
         //ActionResult - An action is capable of returning a specific data type (see WeatherForecastController action).  When multiple return types are possible, it's common to return ActionResult, IActionResult or ActionResult<T>, where T represents the data type to be returned.
 
-        private readonly HotelListingDbContext _context;
+        //Entity representing Table does not get suffix aka DTO.  
+       
+        //inject automapper
+        private readonly IMapper _mapper;
+        private readonly ICountriesRepository _countriesRepository;
 
         //constructor
-        public CountriesController(HotelListingDbContext context)
+        //Once you inject the repository into the constructor, create the repository field and add underscore, since the field will be private
+        public CountriesController(IMapper mapper, ICountriesRepository countriesRepository)
         {
-            _context = context;
+           
+            this._mapper = mapper;
+            this._countriesRepository = countriesRepository;
         }
 
         // GET: api/Countries
         [HttpGet]
 
         //IEnumberable - return at least one or more in a collection
-        public async Task<ActionResult<IEnumerable<Country>>> GetCountries()
+        //Returning a Mapped DTO to prevent oversharing. 
+        public async Task<ActionResult<IEnumerable<GetCountryDto>>> GetCountries()
         {
             //return Select * from Countries as a List
             //OK can be used to return 200 explictly
-            var countries = await _context.Countries.ToListAsync();
-            return Ok(countries);
+            var countries = await _countriesRepository.GetAllAsync();
+            var records = _mapper.Map<List<GetCountryDto>>(countries);
+            return Ok(records);
 
         }
 
         // GET: api/Countries/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Country>> GetCountry(int id)
+        public async Task<ActionResult<CountryDto>> GetCountry(int id)
         {
-            var country = await _context.Countries.FindAsync(id);
+            // var country = await _context.Countries.FindAsync(id);
+            //Below is refactored
+            var country = await _countriesRepository.GetDetails(id);
 
             if (country == null)
             {
                 return NotFound();
             }
 
-            return Ok(country);
+            var countryDto = _mapper.Map<CountryDto>(country);
+            return Ok(countryDto);
         }
 
         // PUT: api/Countries/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        //We should't be accepting the Country Object's Id from the user.  It would be dangerous.
+        //Data Transfer DTO - Abstraction of the data that we want to transfer.  
         [HttpPut("{id}")]
         //All or nothing was changed
         //Country is the entire object being sent from the UI/Client
-        public async Task<IActionResult> PutCountry(int id, Country country)
+
+        //Creating a repository is for creating another layer of abstraction between our controller and intelligence.
+        //A controller should only recieve the request, route the request and return data.  It shouldn't have the business intelligence.
+        //A controller is a manager of a manager.  The controller is going to rely on the repostiory.
+        public async Task<IActionResult> PutCountry(int id, UpdateCountryDto updateCountryDto)
         {
-            if (id != country.Id)
+            if (id != updateCountryDto.Id)
             {
                 return BadRequest("Invalid Record Id");
             }
 
             //every entity (ex: country) has an Entity State
 
-            _context.Entry(country).State = EntityState.Modified;
+            ////  _context.Entry(country).State = EntityState.Modified;
+
+            var country = await _countriesRepository.GetAsync(id);
+            
+            if (country == null)
+            {
+                return NotFound();
+            }
+            //takes everything from the left object into the right object
+            _mapper.Map(updateCountryDto, country);
 
             try
             {
-                await _context.SaveChangesAsync();
+                await _countriesRepository.UpdateAsync(country);
             }
             catch (DbUpdateConcurrencyException)
             {
                 //If two users try to update the same record
-                if (!CountryExists(id))
+                if (!await CountryExists(id))
                 {
                     return NotFound();
                 }
@@ -115,12 +145,34 @@ namespace HotelListing.Controllers
         // POST: api/Countries
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Country>> PostCountry(Country country)
+        public async Task<ActionResult<Country>> PostCountry(CreateCountryDto createCountryDto)
         {
+
+            //example of a guard clause - guarding against the rest of the code, so it doesn't get executed. 
+            if (ModelState.IsValid == false) 
+            {
+                var errors = ModelState.Select(m => m.Value.Errors);
+
+                return BadRequest(errors);
+            }
             //context represents
             //a copy of what is being passwed in controller's constructor, DBContext
-            _context.Countries.Add(country);
-            await _context.SaveChangesAsync();
+            //Make sure AutoMapper is a registered/injected in the Program.cs as a services
+            //Without AutoMapper
+                  /*  var country = new Country
+                    {
+                        Name = createCountry.Name,
+                        ShortName = createCountry.ShortName,
+                    };*/
+
+            //With Automapper, prevents you from setting mutliple fields
+            //let auto mapper do the conversion
+            //Example: Reflection - Express Mapper 
+            //Unless the table changes alot (weekly or daily) - Use Chatgpt to create mapping for any number of columns.  
+            var country = _mapper.Map<Country>(createCountryDto);
+
+            await _countriesRepository.AddAsync(country);
+            
 
             // this is what is returned in Swagger from the return in code:
             // access-control-allow-origin: *
@@ -137,7 +189,7 @@ namespace HotelListing.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCountry(int id)
         {
-            var country = await _context.Countries.FindAsync(id);
+            var country = await _countriesRepository.GetAsync(id);
             if (country == null)
             {
                 return NotFound();
@@ -146,15 +198,15 @@ namespace HotelListing.Controllers
             //Entity State is in a delete status, so generate a delete SQL?
             //Entity Framework statement
 
-            _context.Countries.Remove(country);
-            await _context.SaveChangesAsync();
+            _countriesRepository.DeleteAsync(id);
+          
 
             return NoContent();
         }
 
-        private bool CountryExists(int id)
+        private async Task<bool> CountryExists(int id)
         {
-            return _context.Countries.Any(e => e.Id == id);
+            return await _countriesRepository.Exists(id);
         }
     }
 }

@@ -1,4 +1,8 @@
-﻿namespace HotelListing.Data
+﻿// S in SOLID - You only want one class to be responsbile for one thing.
+
+//This is data operation, not for API front end operation. 
+
+namespace HotelListing.Data
 {
     public class Country
     {
