@@ -198,7 +198,7 @@ namespace HotelListing.Controllers
             //Entity State is in a delete status, so generate a delete SQL?
             //Entity Framework statement
 
-            _countriesRepository.DeleteAsync(id);
+            await _countriesRepository.DeleteAsync(id);
           
 
             return NoContent();
