@@ -10,11 +10,13 @@ using System.Runtime.Intrinsics.X86;
 using HotelListing.Models.Country;
 using AutoMapper;
 using HotelListing.Contracts;
+using Microsoft.AspNetCore.Authorization;
 
 namespace HotelListing.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    
     public class CountriesController : ControllerBase
     {
         //DB (Dependency)? Injection (Video 26 with Williams)
@@ -95,12 +97,14 @@ namespace HotelListing.Controllers
         //We should't be accepting the Country Object's Id from the user.  It would be dangerous.
         //Data Transfer DTO - Abstraction of the data that we want to transfer.  
         [HttpPut("{id}")]
+        [Authorize]
         //All or nothing was changed
         //Country is the entire object being sent from the UI/Client
 
         //Creating a repository is for creating another layer of abstraction between our controller and intelligence.
         //A controller should only recieve the request, route the request and return data.  It shouldn't have the business intelligence.
         //A controller is a manager of a manager.  The controller is going to rely on the repostiory.
+
         public async Task<IActionResult> PutCountry(int id, UpdateCountryDto updateCountryDto)
         {
             if (id != updateCountryDto.Id)
@@ -140,11 +144,12 @@ namespace HotelListing.Controllers
 
             return NoContent();
         }
-
+       
         //This methods expects to return a datatype of Country
         // POST: api/Countries
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<Country>> PostCountry(CreateCountryDto createCountryDto)
         {
 
@@ -187,6 +192,7 @@ namespace HotelListing.Controllers
 
         // DELETE: api/Countries/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Administrator")]
         public async Task<IActionResult> DeleteCountry(int id)
         {
             var country = await _countriesRepository.GetAsync(id);
