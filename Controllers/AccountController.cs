@@ -10,10 +10,12 @@ namespace HotelListing.Controllers
     public class AccountController : ControllerBase
     {
         private readonly IAuthManager _authManager;
+        private readonly ILogger<AccountController> _logger;
 
-        public AccountController(IAuthManager authManager)
+        public AccountController(IAuthManager authManager, ILogger<AccountController> logger)
         {
             this._authManager = authManager;
+            this._logger = logger;
         }
 
         // POST: api/Account/register
@@ -26,28 +28,33 @@ namespace HotelListing.Controllers
         {
             //FromBody is coming from the body, not the paramaeters, like ID at the end of the url
 
-            var errors = await _authManager.Register(apiUserDto);
 
-            if (errors.Any())
-            {     //Model State handles the errors or the state of model
-                  //Model being the whatever datatype accepting data for the request
-                  //The Model State gets set and the the model state holds the errors,
-                  //and displays when a BadRequest comes in.
-                  //Example: When the error "name required" that is an example of a model state being returned
-                
-                
-                //Can you further explain what an Model State?
+            _logger.LogInformation($"Registraton Attempt for {apiUserDto.Email}");
 
-                foreach (var error in errors) 
-                {
-                    ModelState.AddModelError(error.Code, error.Description);
-                
+           
+                var errors = await _authManager.Register(apiUserDto);
+
+                if (errors.Any())
+                {     //Model State handles the errors or the state of model
+                      //Model being the whatever datatype accepting data for the request
+                      //The Model State gets set and the the model state holds the errors,
+                      //and displays when a BadRequest comes in.
+                      //Example: When the error "name required" that is an example of a model state being returned
+
+
+                    //Can you further explain what an Model State?
+
+                    foreach (var error in errors)
+                    {
+                        ModelState.AddModelError(error.Code, error.Description);
+
+                    }
+
+                    return BadRequest(ModelState);
+
                 }
-
-                return BadRequest(ModelState);
-
-            }
-            return Ok();
+                return Ok();
+            
         
         }
         // POST: api/Account/register
@@ -60,17 +67,18 @@ namespace HotelListing.Controllers
         //Questions on debugging. Different results on postman vs swagger.
         public async Task<ActionResult> Login([FromBody] LoginDto loginDto)
         {
-
+            _logger.LogInformation($"Login Attempt for {loginDto.Email}");
             var authResponse = await _authManager.Login(loginDto);
 
-            if (authResponse == null)
-            {   
-                return Unauthorized(); //401 http error
-                //forbidden() aka 403 is used when you're authorized, but don't have the role to access the page
-            }
-            return Ok(authResponse);
+                if (authResponse == null)
+                {
+                    return Unauthorized(); //401 http error
+                                           //forbidden() aka 403 is used when you're authorized, but don't have the role to access the page
+                }
+                return Ok(authResponse);            
 
         }
+
         // POST: api/Account/refreshtoken
         [HttpPost]
         [Route("refreshtoken")]

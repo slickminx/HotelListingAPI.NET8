@@ -11,12 +11,15 @@ using HotelListing.Models.Country;
 using AutoMapper;
 using HotelListing.Contracts;
 using Microsoft.AspNetCore.Authorization;
+using HotelListing.Exceptions;
+using HotelListing.Models;
 
 namespace HotelListing.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/v{version:apiVersion}/[controller]")]
     [ApiController]
-    
+    [ApiVersion("1.0")]
+
     public class CountriesController : ControllerBase
     {
         //DB (Dependency)? Injection (Video 26 with Williams)
@@ -50,14 +53,16 @@ namespace HotelListing.Controllers
         //inject automapper
         private readonly IMapper _mapper;
         private readonly ICountriesRepository _countriesRepository;
+        private readonly ILogger<CountriesController> _logger;
 
         //constructor
         //Once you inject the repository into the constructor, create the repository field and add underscore, since the field will be private
-        public CountriesController(IMapper mapper, ICountriesRepository countriesRepository)
+        public CountriesController(IMapper mapper, ICountriesRepository countriesRepository, ILogger<CountriesController> logger)
         {
            
             this._mapper = mapper;
             this._countriesRepository = countriesRepository;
+            this._logger = logger;
         }
 
         // GET: api/Countries
@@ -75,6 +80,23 @@ namespace HotelListing.Controllers
 
         }
 
+        //GET: api/Countries/?StartIndex-0&pagesize-25&pageNumber=1
+
+       /* [HttpGet]
+
+        //IEnumberable - return at least one or more in a collection
+        //Returning a Mapped DTO to prevent oversharing. 
+        public async Task<ActionResult<PagedResult<GetCountryDto>>> GetPagedCountries([FromQuery] QueryParameters queryParameters)
+        {
+            //return Select * from Countries as a List
+            //OK can be used to return 200 explictly
+            //The mapping is being done on the repository level
+            var pagedCountriesResult = await _countriesRepository.GetAllAsync<GetCountryDto>(queryParameters);
+        
+            return Ok(pagedCountriesResult);
+
+        }*/
+
         // GET: api/Countries/5
         [HttpGet("{id}")]
         public async Task<ActionResult<CountryDto>> GetCountry(int id)
@@ -85,7 +107,9 @@ namespace HotelListing.Controllers
 
             if (country == null)
             {
-                return NotFound();
+               // _logger.LogWarning($"No Record found {nameof(GetCountry)} with Id: {id}. ");
+
+                throw new NotFoundException(nameof(GetCountry), id);
             }
 
             var countryDto = _mapper.Map<CountryDto>(country);
@@ -120,7 +144,7 @@ namespace HotelListing.Controllers
             
             if (country == null)
             {
-                return NotFound();
+                throw new NotFoundException(nameof(GetCountries), id);
             }
             //takes everything from the left object into the right object
             _mapper.Map(updateCountryDto, country);

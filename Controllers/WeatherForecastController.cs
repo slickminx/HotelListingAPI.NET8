@@ -4,6 +4,10 @@ namespace HotelListing.Controllers
 {
     [ApiController]
     [Route("[controller]")]
+    //http://localhost:5292/v3/weatherforecast
+   // [Route("v{version:apiVersion}/[controller]")]
+   // [ApiVersion("3.0")]
+   // [ApiVersion("3.0", Deprecated = true)]
     public class WeatherForecastController : ControllerBase
     {
         private static readonly string[] Summaries = new[]
